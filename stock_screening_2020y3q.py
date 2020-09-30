@@ -29,11 +29,42 @@ def CreateColumn():
     columns.append(all_thead_tr_th[9].get_text().strip())
     columns.append("시가총액(억)")
     columns.append("상승여력(%)")
+    columns.append("배당율(%)")
     columns.append("멀티플")
     columns.append("업종")
     columns.append("기업개요")
 
     return columns
+
+
+def GetMultipleVal(name, category):
+    name_multiple_tb = {
+        "코오롱글로벌": 5,
+        "뷰웍스": 15,
+        "스튜디오드래곤": 15,
+        "에코마케팅": 20,
+        "카카오": 30,
+        "NAVER": 35,
+    }
+    category_multiple_tb = {
+        "조선": 6,
+        "증권": 8,
+        "은행": 8,
+        "해운사": 8,
+        "건설": 8,
+        "호텔,레스토랑,레저": 8,
+        "IT서비스": 12,
+        "게임엔터테인먼트": 15,
+        "양방향미디어와서비스": 15,
+        "소프트웨어": 15,
+    }
+
+    korean_multiple = 10
+    if name in name_multiple_tb:
+        return name_multiple_tb.get(name)
+    if category in category_multiple_tb:
+        return category_multiple_tb.get(category)
+    return korean_multiple
 
 
 columns = CreateColumn()
@@ -92,6 +123,17 @@ for stock_id in range(0, len(stock_arr)):
             else:
                 profits[i] = int(profit_text)
 
+    # 배당률
+    dividend_rate = 0.0
+    dividend_rate_td = all_tr[14].find_all("td")
+    dividend_rate_text = dividend_rate_td[3].get_text().strip()
+    if dividend_rate_text and dividend_rate_text[0] != '-':
+        dividend_rate = float(dividend_rate_text)
+    elif dividend_rate_td[2].get_text().strip():
+        dividend_rate_text = dividend_rate_td[2].get_text().strip()
+        if dividend_rate_text[0] != '-':
+            dividend_rate = float(dividend_rate_text)
+
     # 시총(억)
     market_cap = 0
     cur_price = 0
@@ -128,16 +170,17 @@ for stock_id in range(0, len(stock_arr)):
         if trade_compare.get_text().strip():
             business_category = trade_compare.get_text().strip()
 
-    # 평균 멀티플
-    # FIXME: 업종에 따른 차등 적용
-    multiple = 10
+    # 종목 또는 업종에 따른 멀티플
+    multiple = GetMultipleVal(stock_arr[stock_id][0], business_category)
 
-    # 예상시총: 당해년도 예상 영업이익 -> 다음 분기 예상 영업이익 -> 직전년도 영업이익
+    # 예상시총: 당해년도 예상 영업이익 -> 다음 분기 예상 영업이익 -> 직전 두 분기 * 2 -> 직전년도 영업이익
     base_val = profits[2]
     if profits[3] > 0:
         base_val = profits[3]
     elif profits[9] > 0:
         base_val = profits[7] + profits[8] + (profits[9] * 2)
+    elif profits[7] > 0 and profits[8] > 0:
+        base_val = (profits[7] + profits[8]) * 2
     expected_market_cap = base_val * multiple
 
     # 상승여력(%)
@@ -153,9 +196,10 @@ for stock_id in range(0, len(stock_arr)):
     val_result_ws.cell(stock_id + 2, 6, profits[9])
     val_result_ws.cell(stock_id + 2, 7, market_cap) # 시가총액
     val_result_ws.cell(stock_id + 2, 8, valuation) # 상승여력
-    val_result_ws.cell(stock_id + 2, 9, multiple) # 멀티플
-    val_result_ws.cell(stock_id + 2, 10, business_category) # 업종
-    val_result_ws.cell(stock_id + 2, 11, stock_arr[stock_id][3]) # 기업설명
+    val_result_ws.cell(stock_id + 2, 9, dividend_rate) # 배당률
+    val_result_ws.cell(stock_id + 2, 10, multiple) # 멀티플
+    val_result_ws.cell(stock_id + 2, 11, business_category) # 업종
+    val_result_ws.cell(stock_id + 2, 12, stock_arr[stock_id][3]) # 기업설명
 
     print("#" + str(stock_id) + ": " + stock_arr[stock_id][0])
 
