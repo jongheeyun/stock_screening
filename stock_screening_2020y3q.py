@@ -1,3 +1,5 @@
+from typing import List, Any, Union
+
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -5,7 +7,7 @@ from openpyxl import load_workbook
 from openpyxl import Workbook
 
 
-def CreateColumn():
+def create_column():
     url = "https://finance.naver.com/item/main.nhn?code=005930" # 삼성전자
     res = requests.get(url)
     html = BeautifulSoup(res.text, "html.parser")
@@ -24,10 +26,16 @@ def CreateColumn():
     columns.append("기업명")
     columns.append("연간 영업이익: " + all_thead_tr_th[2].get_text().strip())
     columns.append(all_thead_tr_th[3].get_text().strip())
-    columns.append("분기 영업이익: " + all_thead_tr_th[7].get_text().strip())
+    columns.append("YoY(%)")
+    columns.append("분기 영업이익: " + all_thead_tr_th[5].get_text().strip())
+    columns.append(all_thead_tr_th[6].get_text().strip())
+    columns.append(all_thead_tr_th[7].get_text().strip())
     columns.append(all_thead_tr_th[8].get_text().strip())
     columns.append(all_thead_tr_th[9].get_text().strip())
+    columns.append("YoY(%)")
+    columns.append("QoQ(%)")
     columns.append("시가총액(억)")
+    columns.append("목표시총(억)")
     columns.append("상승여력(%)")
     columns.append("배당율(%)")
     columns.append("멀티플")
@@ -37,7 +45,7 @@ def CreateColumn():
     return columns
 
 
-def GetMultipleVal(name, category):
+def get_multiple_value(name, category):
     name_multiple_tb = {
         "코오롱글로벌": 5,
         "뷰웍스": 15,
@@ -45,18 +53,26 @@ def GetMultipleVal(name, category):
         "에코마케팅": 20,
         "카카오": 30,
         "NAVER": 35,
+        "에코프로비엠": 20,
+        "엘앤에프": 20,
+        "포스코케미칼": 20,
+        "한컴위드": 25,
+        "한글과컴퓨터": 20,
     }
     category_multiple_tb = {
         "조선": 6,
-        "증권": 8,
-        "은행": 8,
+        "증권": 6,
+        "은행": 6,
         "해운사": 8,
         "건설": 8,
         "호텔,레스토랑,레저": 8,
         "IT서비스": 12,
-        "게임엔터테인먼트": 15,
         "양방향미디어와서비스": 15,
-        "소프트웨어": 15,
+        "통신장비": 15,
+        "게임엔터테인먼트": 20,
+        "건강관리장비와용품": 20,
+        "소프트웨어": 30,
+        "제약": 30,
     }
 
     korean_multiple = 10
@@ -67,7 +83,7 @@ def GetMultipleVal(name, category):
     return korean_multiple
 
 
-columns = CreateColumn()
+columns = create_column()
 val_result_wb = Workbook()
 val_result_ws = val_result_wb.active
 val_result_ws.append(columns)
@@ -171,7 +187,7 @@ for stock_id in range(0, len(stock_arr)):
             business_category = trade_compare.get_text().strip()
 
     # 종목 또는 업종에 따른 멀티플
-    multiple = GetMultipleVal(stock_arr[stock_id][0], business_category)
+    multiple = get_multiple_value(stock_arr[stock_id][0], business_category)
 
     # 예상시총: 당해년도 예상 영업이익 -> 다음 분기 예상 영업이익 -> 직전 두 분기 * 2 -> 직전년도 영업이익
     base_val = profits[2]
@@ -188,18 +204,35 @@ for stock_id in range(0, len(stock_arr)):
     if valuation < 0:
         valuation = 0
 
+    year_profits_yoy = 0
+    if profits[3] > 0 and profits[2] > 0:
+        year_profits_yoy = round((profits[3] / profits[2] - 1.0) * 100)
+
+    quarter_profits_qoq = 0
+    if profits[8] > 0 and profits[9] > 0:
+        quarter_profits_qoq = round((profits[9] / profits[8] - 1.0) * 100)
+    quarter_profits_yoy = 0
+    if profits[5] > 0 and profits[9] > 0:
+        quarter_profits_yoy = round((profits[9] / profits[5] - 1.0) * 100)
+
     # 열 추가
-    val_result_ws.cell(stock_id + 2, 2, profits[2]) # 영업이익 직전 2년
+    val_result_ws.cell(stock_id + 2, 2, profits[2])  # 영업이익 직전 2년
     val_result_ws.cell(stock_id + 2, 3, profits[3]) 
-    val_result_ws.cell(stock_id + 2, 4, profits[7]) # 영업이익 직전 3분기
-    val_result_ws.cell(stock_id + 2, 5, profits[8]) 
-    val_result_ws.cell(stock_id + 2, 6, profits[9])
-    val_result_ws.cell(stock_id + 2, 7, market_cap) # 시가총액
-    val_result_ws.cell(stock_id + 2, 8, valuation) # 상승여력
-    val_result_ws.cell(stock_id + 2, 9, dividend_rate) # 배당률
-    val_result_ws.cell(stock_id + 2, 10, multiple) # 멀티플
-    val_result_ws.cell(stock_id + 2, 11, business_category) # 업종
-    val_result_ws.cell(stock_id + 2, 12, stock_arr[stock_id][3]) # 기업설명
+    val_result_ws.cell(stock_id + 2, 4, year_profits_yoy)
+    val_result_ws.cell(stock_id + 2, 5, profits[5])
+    val_result_ws.cell(stock_id + 2, 6, profits[6]) 
+    val_result_ws.cell(stock_id + 2, 7, profits[7])
+    val_result_ws.cell(stock_id + 2, 8, profits[8]) 
+    val_result_ws.cell(stock_id + 2, 9, profits[9])  # 영업이익 직전 5분기
+    val_result_ws.cell(stock_id + 2, 10, quarter_profits_yoy)  # 전년 동 분기
+    val_result_ws.cell(stock_id + 2, 11, quarter_profits_qoq)  # 직전 분기
+    val_result_ws.cell(stock_id + 2, 12, market_cap)  # 시가총액
+    val_result_ws.cell(stock_id + 2, 13, expected_market_cap)  # 목표시가총액
+    val_result_ws.cell(stock_id + 2, 14, valuation)  # 상승여력
+    val_result_ws.cell(stock_id + 2, 15, dividend_rate)  # 배당률
+    val_result_ws.cell(stock_id + 2, 16, multiple)  # 멀티플
+    val_result_ws.cell(stock_id + 2, 17, business_category)  # 업종
+    val_result_ws.cell(stock_id + 2, 18, stock_arr[stock_id][3])  # 기업설명
 
     print("#" + str(stock_id) + ": " + stock_arr[stock_id][0])
 
