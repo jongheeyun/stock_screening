@@ -24,16 +24,21 @@ def create_column():
     # 컬럼 구성
     columns = []
     columns.append("기업명")
+
     columns.append("연간 영업이익: " + all_thead_tr_th[2].get_text().strip())
     columns.append(all_thead_tr_th[3].get_text().strip())
     columns.append("YoY(%)")
-    columns.append("분기 영업이익: " + all_thead_tr_th[5].get_text().strip())
-    columns.append(all_thead_tr_th[6].get_text().strip())
-    columns.append(all_thead_tr_th[7].get_text().strip())
-    columns.append(all_thead_tr_th[8].get_text().strip())
+
+    columns.append("분기 매출 " + all_thead_tr_th[8].get_text().strip())
     columns.append(all_thead_tr_th[9].get_text().strip())
     columns.append("YoY(%)")
     columns.append("QoQ(%)")
+
+    columns.append("분기 영업이익" + all_thead_tr_th[8].get_text().strip())
+    columns.append(all_thead_tr_th[9].get_text().strip())
+    columns.append("YoY(%)")
+    columns.append("QoQ(%)")
+
     columns.append("시가총액(억)")
     columns.append("목표시총(억)")
     columns.append("상승여력(%)")
@@ -50,29 +55,29 @@ def get_multiple_value(name, category):
         "코오롱글로벌": 5,
         "뷰웍스": 15,
         "스튜디오드래곤": 15,
-        "에코마케팅": 20,
+        "에코마케팅": 15,
         "카카오": 30,
-        "NAVER": 35,
+        "NAVER": 30,
         "에코프로비엠": 20,
         "엘앤에프": 20,
         "포스코케미칼": 20,
-        "한컴위드": 25,
-        "한글과컴퓨터": 20,
+        "한컴위드": 15,
+        "한글과컴퓨터": 15,
     }
     category_multiple_tb = {
         "조선": 6,
-        "증권": 6,
-        "은행": 6,
-        "해운사": 8,
+        "증권": 5,
+        "은행": 5,
+        "해운사": 7,
         "건설": 8,
-        "호텔,레스토랑,레저": 8,
-        "IT서비스": 12,
+        "호텔,레스토랑,레저": 7,
+        "IT서비스": 10,
         "양방향미디어와서비스": 15,
-        "통신장비": 15,
-        "게임엔터테인먼트": 20,
-        "건강관리장비와용품": 20,
-        "소프트웨어": 30,
-        "제약": 30,
+        "통신장비": 10,
+        "게임엔터테인먼트": 15,
+        "건강관리장비와용품": 15,
+        "소프트웨어": 15,
+        "제약": 20,
     }
 
     korean_multiple = 10
@@ -114,7 +119,7 @@ for stock_id in range(0, len(stock_arr)):
         continue
 
     # 4년 매출
-    sales = [0, 0, 0, 0]
+    sales = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     sales_all_td = all_tr[0].find_all("td")
     for i in range(0, len(sales)):
         sales_text = sales_all_td[i].get_text().strip().replace(",", "")
@@ -208,9 +213,18 @@ for stock_id in range(0, len(stock_arr)):
     if profits[3] > 0 and profits[2] > 0:
         year_profits_yoy = round((profits[3] / profits[2] - 1.0) * 100)
 
+    quarter_sales_qoq = 0
+    if sales[8] > 0 and sales[9] > 0:
+        quarter_sales_qoq = round((sales[9] / sales[8] - 1.0) * 100)
+
+    quarter_sales_yoy = 0
+    if sales[5] > 0 and sales[9] > 0:
+        quarter_sales_yoy = round((sales[9] / sales[5] - 1.0) * 100)
+
     quarter_profits_qoq = 0
     if profits[8] > 0 and profits[9] > 0:
         quarter_profits_qoq = round((profits[9] / profits[8] - 1.0) * 100)
+
     quarter_profits_yoy = 0
     if profits[5] > 0 and profits[9] > 0:
         quarter_profits_yoy = round((profits[9] / profits[5] - 1.0) * 100)
@@ -219,20 +233,21 @@ for stock_id in range(0, len(stock_arr)):
     val_result_ws.cell(stock_id + 2, 2, profits[2])  # 영업이익 직전 2년
     val_result_ws.cell(stock_id + 2, 3, profits[3]) 
     val_result_ws.cell(stock_id + 2, 4, year_profits_yoy)
-    val_result_ws.cell(stock_id + 2, 5, profits[5])
-    val_result_ws.cell(stock_id + 2, 6, profits[6]) 
-    val_result_ws.cell(stock_id + 2, 7, profits[7])
-    val_result_ws.cell(stock_id + 2, 8, profits[8]) 
-    val_result_ws.cell(stock_id + 2, 9, profits[9])  # 영업이익 직전 5분기
-    val_result_ws.cell(stock_id + 2, 10, quarter_profits_yoy)  # 전년 동 분기
-    val_result_ws.cell(stock_id + 2, 11, quarter_profits_qoq)  # 직전 분기
-    val_result_ws.cell(stock_id + 2, 12, market_cap)  # 시가총액
-    val_result_ws.cell(stock_id + 2, 13, expected_market_cap)  # 목표시가총액
-    val_result_ws.cell(stock_id + 2, 14, valuation)  # 상승여력
-    val_result_ws.cell(stock_id + 2, 15, dividend_rate)  # 배당률
-    val_result_ws.cell(stock_id + 2, 16, multiple)  # 멀티플
-    val_result_ws.cell(stock_id + 2, 17, business_category)  # 업종
-    val_result_ws.cell(stock_id + 2, 18, stock_arr[stock_id][3])  # 기업설명
+    val_result_ws.cell(stock_id + 2, 5, sales[8]) # 직전분기 매출
+    val_result_ws.cell(stock_id + 2, 6, sales[9]) # 이번분기 매출
+    val_result_ws.cell(stock_id + 2, 7, quarter_sales_yoy)  # 전년 동 분기 매출
+    val_result_ws.cell(stock_id + 2, 8, quarter_sales_qoq)  # 직전 분기 매출
+    val_result_ws.cell(stock_id + 2, 9, profits[8]) # 직전 영업이익
+    val_result_ws.cell(stock_id + 2, 10, profits[9]) # 이번 영업이익
+    val_result_ws.cell(stock_id + 2, 11, quarter_profits_yoy)  # 전년 동 분기 영업이익
+    val_result_ws.cell(stock_id + 2, 12, quarter_profits_qoq)  # 직전 분기 영업이익
+    val_result_ws.cell(stock_id + 2, 13, market_cap)  # 현시가총액
+    val_result_ws.cell(stock_id + 2, 14, expected_market_cap)  # 목표시가총액
+    val_result_ws.cell(stock_id + 2, 15, valuation)  # 상승여력
+    val_result_ws.cell(stock_id + 2, 16, dividend_rate)  # 배당률
+    val_result_ws.cell(stock_id + 2, 17, multiple)  # 멀티플
+    val_result_ws.cell(stock_id + 2, 18, business_category)  # 업종
+    val_result_ws.cell(stock_id + 2, 19, stock_arr[stock_id][3])  # 기업설명
 
     print("#" + str(stock_id) + ": " + stock_arr[stock_id][0])
 
