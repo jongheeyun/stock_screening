@@ -24,6 +24,7 @@ def create_column():
     # 컬럼 구성
     columns = []
     columns.append("기업명")
+    columns.append("시장")
 
     columns.append("연간 영업이익: " + all_thead_tr_th[2].get_text().strip())
     columns.append(all_thead_tr_th[3].get_text().strip())
@@ -100,12 +101,25 @@ stock_df['종목코드'] = stock_df['종목코드'].map(lambda x: f'{x:0>6}')
 stock_arr = stock_df.to_numpy()
 
 for stock_id in range(0, len(stock_arr)):
-    val_result_ws.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) # 초기값
-    val_result_ws.cell(stock_id + 2, 1, stock_arr[stock_id][0]) # 기업명
+    val_result_ws.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])  # 초기값
+    val_result_ws.cell(stock_id + 2, 1, stock_arr[stock_id][0])  # 기업명
 
     url = "https://finance.naver.com/item/main.nhn?code=" + stock_arr[stock_id][1]
     res = requests.get(url)
     html = BeautifulSoup(res.text, "html.parser")
+
+    # kospi or kosdaq
+    stock_type = "코넥스"
+    new_totalinfo_div = html.find("div", {"class", "new_totalinfo"})
+    if not new_totalinfo_div:
+        continue
+    dl_totalinfo = new_totalinfo_div.find("dl", {"class", "blind"})
+    dd_totalinfo_all = dl_totalinfo.find_all("dd")
+    dd_text = dd_totalinfo_all[2].get_text().strip()
+    if "코스닥" in dd_text:
+        stock_type = "코스닥"
+    elif "코스피" in dd_text:
+        stock_type = "코스피"
 
     cop_anal = html.find("div", {"class", "section cop_analysis"})
     if not cop_anal:
@@ -159,13 +173,13 @@ for stock_id in range(0, len(stock_arr)):
     market_cap = 0
     cur_price = 0
     trade_compare_div = html.find("div", {"class", "section trade_compare"})
-    if trade_compare_div: # 이미 계산된 값이 있다면 사용
+    if trade_compare_div:  # 이미 계산된 값이 있다면 사용
         compare_table = trade_compare_div.find(
             "table", {"class", "tb_type1 tb_num"})
         tbody = compare_table.find("tbody")
         all_tr = tbody.find_all("tr")
         cur_price_text = all_tr[0].find("td").get_text().strip().replace(",", "")
-        if cur_price_text: # 현재가
+        if cur_price_text:  # 현재가
             cur_price = int(cur_price_text)
         if len(all_tr) > 3:
             market_cap_text = all_tr[3].find("td").get_text().strip().replace(",", "")
@@ -178,7 +192,7 @@ for stock_id in range(0, len(stock_arr)):
         stock_total_text = stock_total_tr[2].find("td").get_text().strip().replace(",", "")
         if stock_total_text:
             stock_total = int(stock_total_text)
-            market_cap = round(cur_price * stock_total / 100000000) # 억 단위로 변환
+            market_cap = round(cur_price * stock_total / 100000000)  # 억 단위로 변환
     if market_cap == 0:
         continue
 
@@ -212,10 +226,18 @@ for stock_id in range(0, len(stock_arr)):
     year_profits_yoy = 0
     if profits[3] > 0 and profits[2] > 0:
         year_profits_yoy = round((profits[3] / profits[2] - 1.0) * 100)
+    elif profits[2] < 0 and profits[3] > 0:
+        year_profits_yoy = "흑전"
+    elif profits[2] < 0 and profits[3] < 0:
+        year_profits_yoy = "적지"
 
     quarter_sales_qoq = 0
     if sales[8] > 0 and sales[9] > 0:
         quarter_sales_qoq = round((sales[9] / sales[8] - 1.0) * 100)
+    elif sales[8] < 0 and sales[9] > 0:
+        quarter_sales_qoq = "흑전"
+    elif sales[8] < 0 and sales[9] < 0:
+        quarter_sales_qoq = "적지"
 
     quarter_sales_yoy = 0
     if sales[5] > 0 and sales[9] > 0:
@@ -224,31 +246,38 @@ for stock_id in range(0, len(stock_arr)):
     quarter_profits_qoq = 0
     if profits[8] > 0 and profits[9] > 0:
         quarter_profits_qoq = round((profits[9] / profits[8] - 1.0) * 100)
+    elif profits[8] < 0 and profits[9] > 0:
+        quarter_profits_qoq = "흑전"
+    elif profits[8] < 0 and profits[9] < 0:
+        quarter_profits_qoq = "적지"
 
     quarter_profits_yoy = 0
     if profits[5] > 0 and profits[9] > 0:
         quarter_profits_yoy = round((profits[9] / profits[5] - 1.0) * 100)
 
     # 열 추가
-    val_result_ws.cell(stock_id + 2, 2, profits[2])  # 영업이익 직전 2년
-    val_result_ws.cell(stock_id + 2, 3, profits[3]) 
-    val_result_ws.cell(stock_id + 2, 4, year_profits_yoy)
-    val_result_ws.cell(stock_id + 2, 5, sales[8]) # 직전분기 매출
-    val_result_ws.cell(stock_id + 2, 6, sales[9]) # 이번분기 매출
-    val_result_ws.cell(stock_id + 2, 7, quarter_sales_yoy)  # 전년 동 분기 매출
-    val_result_ws.cell(stock_id + 2, 8, quarter_sales_qoq)  # 직전 분기 매출
-    val_result_ws.cell(stock_id + 2, 9, profits[8]) # 직전 영업이익
-    val_result_ws.cell(stock_id + 2, 10, profits[9]) # 이번 영업이익
-    val_result_ws.cell(stock_id + 2, 11, quarter_profits_yoy)  # 전년 동 분기 영업이익
-    val_result_ws.cell(stock_id + 2, 12, quarter_profits_qoq)  # 직전 분기 영업이익
-    val_result_ws.cell(stock_id + 2, 13, market_cap)  # 현시가총액
-    val_result_ws.cell(stock_id + 2, 14, expected_market_cap)  # 목표시가총액
-    val_result_ws.cell(stock_id + 2, 15, valuation)  # 상승여력
-    val_result_ws.cell(stock_id + 2, 16, dividend_rate)  # 배당률
-    val_result_ws.cell(stock_id + 2, 17, multiple)  # 멀티플
-    val_result_ws.cell(stock_id + 2, 18, business_category)  # 업종
-    val_result_ws.cell(stock_id + 2, 19, stock_arr[stock_id][3])  # 기업설명
-
+    col_data = (stock_type,  # 코스피, 코스닥
+                profits[2],  # 영업이익 직전 2년
+                profits[3],
+                year_profits_yoy,
+                sales[8],  # 직전분기 매출
+                sales[9],  # 이번분기 매출
+                quarter_sales_yoy,  # 전년 동 분기
+                quarter_sales_qoq,  # 직전 분기 매출
+                profits[8],  # 직전 영업이익
+                profits[9],  # 이번 영업이익
+                quarter_profits_yoy,  # 전년 동 분기
+                quarter_profits_qoq,  # 직전 분기
+                market_cap,  # 현시가총액
+                expected_market_cap,  # 목표시가총액
+                valuation,  # 상승여력
+                dividend_rate,  # 배당률
+                multiple,  # 멀티플
+                business_category,  # 업종
+                stock_arr[stock_id][3]  # 기업설명
+                )
+    for idx in range(2, 21):
+        val_result_ws.cell(stock_id + 2, idx, col_data[idx - 2])
     print("#" + str(stock_id) + ": " + stock_arr[stock_id][0])
 
 val_result_wb.save("분기예상실적기준_평가.xlsx")
